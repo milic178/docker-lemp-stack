@@ -4,13 +4,25 @@ FROM php:8-fpm-alpine
 ARG UID
 ARG GID
 
-ENV UID=${UID}
-ENV GID=${GID}
+# Install required system dependencies and PHP extensions
+RUN apk add --no-cache \
+        libxml2-dev \
+        oniguruma-dev \
+        zip \
+        curl \
+        bash \
+    && docker-php-ext-install \
+        pdo_mysql \
+        mbstring \
+        dom \
+        xml \
+        zip \
+    && rm -rf /var/cache/apk/*
 
-# Create user and group, set up the working directory
-RUN mkdir -p /var/www/html \
-    && addgroup -g ${GID} --system laravel \
+# Add user and group, set up the working directory
+RUN addgroup -g ${GID} --system laravel \
     && adduser -G laravel --system -D -s /bin/sh -u ${UID} laravel \
+    && mkdir -p /var/www/html \
     && chown -R laravel:laravel /var/www/html
 
 # Set working directory
@@ -19,29 +31,12 @@ WORKDIR /var/www/html
 # Install Composer from the official image
 COPY --from=composer:2.6 /usr/bin/composer /usr/local/bin/composer
 
-# Update PHP-FPM configuration for the laravel user
+# Configure PHP-FPM
 RUN sed -i "s/user = www-data/user = laravel/g" /usr/local/etc/php-fpm.d/www.conf \
     && sed -i "s/group = www-data/group = laravel/g" /usr/local/etc/php-fpm.d/www.conf \
     && echo "php_admin_flag[log_errors] = on" >> /usr/local/etc/php-fpm.d/www.conf
 
-# Install necessary PHP extensions for MariaDB and PHPUnit dependencies
-RUN apk add --no-cache --virtual .build-deps \
-        autoconf \
-        g++ \
-        make \
-        libxml2-dev \
-        oniguruma-dev \
-        curl \
-    && docker-php-ext-install \
-        pdo_mysql \
-        mbstring \
-        dom \
-        xml \
-    && pecl install redis \
-    && docker-php-ext-enable redis \
-    && apk del .build-deps
-
-# Switch to the non-root user
+# Use the non-root user
 USER laravel
 
 # Start PHP-FPM

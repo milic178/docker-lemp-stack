@@ -90,5 +90,5 @@ services:
       - laravel
 
 volumes:
-  mysql_data: # Volume for MariaDB persistence
-  redis_data: # Volume for Redis persistence
+  mysql_data:
+  redis_data:
